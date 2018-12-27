@@ -41,6 +41,12 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 find_package(PkgConfig REQUIRED)
 
+pkg_check_modules(LIBIPSET REQUIRED libipset)
+
+if (LIBIPSET_VERSION_MAJOR VERSION_LESS 7)
+    add_definitions("-DWITH_LIBIPSET_V6_COMPAT")
+endif ()
+
 option (WITH_TLS "Enable TLS support" ON)
 if (${WITH_TLS} STREQUAL ON)
     pkg_search_module(LIBSSL QUIET "libssl")
