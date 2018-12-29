@@ -21,14 +21,28 @@
 #include <arpa/inet.h>
 #include <libipset/session.h>
 #include <libipset/types.h>
-#include <libipset/ui.h>
+#include <libipset/ipset.h>
 #include <string.h>
 
 #include "log.h"
 
+#if IPSET_PROTOCOL < 7
+/* compatibility shims */
+
+static void ipset_envopt_set(struct ipset_session *session, enum ipset_envopt opt)
+{
+    ipset_envopt_parse(session, opt, NULL);
+}
+
+static const char * ipset_session_report_msg(const struct ipset_session *session)
+{
+  return ipset_session_error(session);
+}
+#endif
+
 static int exit_error(int e, struct ipset_session *sess)
 {
-    pr_err("ipset: %s\n", ipset_session_error(sess));
+    pr_err("ipset: %s\n", ipset_session_report_msg(sess));
     ipset_session_fini(sess);
 
     return e;
@@ -60,17 +74,18 @@ int ipset_do(int c, char *set, char *elem)
 
     ipset_load_types();
 
+#if IPSET_PROTOCOL >= 7
+    sess = ipset_session_init(NULL);
+#else
     sess = ipset_session_init(printf);
+#endif
     if (sess == NULL) {
         pr_err("ipset: failed to initialize session\n");
         return 1;
     }
 
     if (cmd == IPSET_CMD_ADD) {
-        ret = ipset_envopt_parse(sess, IPSET_ENV_EXIST, NULL);
-        if (ret < 0) {
-            return exit_error(1, sess);
-        }
+        ipset_envopt_set(sess, IPSET_ENV_EXIST);
     }
 
     ret = ipset_parse_setname(sess, IPSET_SETNAME, set);
